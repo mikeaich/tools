@@ -52,20 +52,36 @@ foreach my $line( @log ) {
 
 print "\n";
 
+my %cleanobjs = ();
+
 foreach my $class( keys %objs ) {
   my $showclass = 1;
+  my $noleaks = 1;
   if( $debug ) {
-    print "class $class\n";
+    print "$class:\n";
     $showclass = 0;
   }
   # foreach my $addr( keys $objs{ $class } ) {
   foreach my $addr( sort { $objs{ $class }{ $a } <=> $objs{ $class }{ $b } } keys $objs{ $class } ) {
     if( $debug || $objs{ $class }{ $addr } != 0 ) {
       if( $showclass ) {
-        print "class $class\n";
+        print "$class:\n";
         $showclass = 0;
       }
-      print "   addr $addr = $objs{ $class }{ $addr }\n";
+      print "   $addr : $objs{ $class }{ $addr }\n";
+      $noleaks = 0;
     }
   }
+  if( $noleaks ) {
+    $cleanobjs{ $class } = 1;
+  }
+}
+
+my $showheader = 1;
+foreach my $class( keys %cleanobjs ) {
+  if( $showheader ) {
+    print "The following classes were all cleaned up properly:\n";
+    $showheader = 0;
+  }
+  print "   $class\n";
 }
