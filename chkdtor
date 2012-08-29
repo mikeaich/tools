@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+# written my Mike Habicher, mikeh@mozilla.com, August 2012.
+
+use strict;
+
+if( $#ARGV < 0 ) {
+  # $ARGV is the array, and $#ARGV gets the highest index in the array
+  print "chkdtor logcatfile\n\n";
+  exit 0;
+}
+
+my $debug = 0;
+
+my $log_file = $ARGV[0];
+
+open( LOG, "<", "$log_file" ) or die( "$log_file: $!\n" );
+my @log = <LOG> or die( "$log_file: $!\n" );
+close( LOG );
+
+my %objs = ();
+my $linenum = 0;
+
+foreach my $line( @log ) {
+  $linenum += 1;
+  if( $line =~ /([A-Za-z][A-Za-z0-9_]+)::(~?[A-Za-z][A-Za-z0-9_]+)\(.*\):[0-9]+ : this=0x([A-Fa-f0-9]+)/ ) {
+    if( $debug ) {
+      print "*";
+    }
+    my $class = $1;
+    my $method = $2;
+    my $address = $3;
+    if( $debug ) {
+      print "\nclass $class, method $method, address $address";
+    }
+    if( substr( $method, 0, 1 ) eq "~" ) {
+      if( $debug ) {
+        print "\ndtor $class @ $address";
+      }
+      $objs{ $class }{ $address } = 0;
+    } elsif( $method eq $class ) {
+      if( $debug ) {
+        print "\nctor $class @ $address";
+      }
+      $objs{ $class }{ $address } = $linenum;
+    }
+  } else {
+    if( $debug ) {
+      print ".";
+    }
+  }
+}
+
+print "\n";
+
+foreach my $class( keys %objs ) {
+  my $showclass = 1;
+  if( $debug ) {
+    print "class $class\n";
+    $showclass = 0;
+  }
+  # foreach my $addr( keys $objs{ $class } ) {
+  foreach my $addr( sort { $objs{ $class }{ $a } <=> $objs{ $class }{ $b } } keys $objs{ $class } ) {
+    if( $debug || $objs{ $class }{ $addr } != 0 ) {
+      if( $showclass ) {
+        print "class $class\n";
+        $showclass = 0;
+      }
+      print "   addr $addr = $objs{ $class }{ $addr }\n";
+    }
+  }
+}
