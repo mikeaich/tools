@@ -19,5 +19,6 @@ system "adb remount";
 my ( $fh, $name ) = tempfile();
 print $fh $out;
 system "adb push $name /system/bin/b2g.sh";
+system "adb shell chmod 0755 /system/bin/b2g.sh";
 system "adb reboot";
 unlink0( $fh, $name );
