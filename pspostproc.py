@@ -32,23 +32,31 @@ def main( argv ):
         cpu = int( ps.group( 3 ) )
         thread = ps.group( 4 )
         process = ps.group( 5 )
-        if process not in ( 'top', 'sh' ):
-          # print 'process: %s(%d), thread: %s(%d), cpu: %d' % ( process, pid, thread, tid, cpu )
-          if pid not in threads:
-            threads[ pid ] = {}
-            threads[ pid ][ 'process' ] = process
-          if tid not in threads[ pid ]:
-            threads[ pid ][ tid ] = {}
-            threads[ pid ][ tid ][ 'thread' ] = thread
-            threads[ pid ][ tid ][ 'cpu' ] = {}
-          if pid == tid:
-            # Get the latest name for this process and update threads
-            threads[ pid ][ 'process' ] = thread
-            threads[ pid ][ tid ][ 'thread' ] = thread
-          threads[ pid ][ tid ][ 'cpu' ][ rt ] = cpu
-          if pid not in times[ rt ]:
-            times[ rt ][ pid ] = {}
-          times[ rt ][ pid ][ tid ] = cpu
+        if cpu > 0:
+          if process not in ( 'top', 'sh' ):
+            # print 'process: %s(%d), thread: %s(%d), cpu: %d' % ( process, pid, thread, tid, cpu )
+            if pid not in threads:
+              threads[ pid ] = {}
+              threads[ pid ][ 'process' ] = process
+              threads[ pid ][ 'cpu' ] = {}
+            if tid not in threads[ pid ]:
+              threads[ pid ][ tid ] = {}
+              threads[ pid ][ tid ][ 'thread' ] = thread
+              threads[ pid ][ tid ][ 'cpu' ] = {}
+            if pid == tid:
+              # Get the latest name for this process and update threads
+              threads[ pid ][ 'process' ] = thread
+              threads[ pid ][ tid ][ 'thread' ] = thread
+            threads[ pid ][ tid ][ 'cpu' ][ rt ] = cpu
+            if rt in threads[ pid ][ 'cpu' ]:
+              threads[ pid ][ 'cpu' ][ rt ] += cpu
+            else:
+              threads[ pid ][ 'cpu' ][ rt ] = cpu
+            if pid not in times[ rt ]:
+              times[ rt ][ pid ] = {}
+              times[ rt ][ pid ][ 'cpu' ] = 0
+            times[ rt ][ pid ][ tid ] = cpu
+            times[ rt ][ pid ][ 'cpu' ] += cpu
       else:
         state = State.IDLE
     if state == State.IDLE:
@@ -58,22 +66,44 @@ def main( argv ):
         times[ rt ] = {}
         state = State.GOTTIME
         # print '*** foo: %f' % float( rt )
+
   times_sorted = sorted( times )
   pids_sorted = sorted( threads )
-  tids_sorted = {}
-  for pid in pids_sorted:
-    if pid not in tids_sorted:
-      tids_sorted[ pid ] = sorted( threads[ pid ] )
   
-  # Emit the table header
-  print "Timestamp,",
-  for pid in pids_sorted:
-    for tid in tids_sorted[ pid ]:
-      if type( tid ) is int:
-        print "%d:%d," % ( pid, tid ),
-  print
-  
+  # Broken down by process -- less detail, more digestible
   if 1:
+    # Emit the table header
+    print "Timestamp,",
+    for pid in pids_sorted:
+      print "%s(%d)," % ( threads[ pid ][ 'process' ], pid ),
+    print
+
+    # Emit the per-process data
+    for ts in times_sorted:
+      print "%f," % ts,
+      for pid in pids_sorted:
+        if ts in threads[ pid ][ 'cpu' ]:
+          print "%d," % threads[ pid ][ 'cpu' ][ ts ],
+        else:
+          print "0,",
+      print
+    
+  # Broken down by thread -- generates a massive, almost unreadable table
+  if 0:
+    tids_sorted = {}
+    for pid in pids_sorted:
+      if pid not in tids_sorted:
+        tids_sorted[ pid ] = sorted( threads[ pid ] )
+
+    # Emit the table header
+    print "Timestamp,",
+    for pid in pids_sorted:
+      for tid in tids_sorted[ pid ]:
+        if type( tid ) is int:
+          print "%d:%d," % ( pid, tid ),
+    print
+  
+    # Emit the per-thread data
     for ts in times_sorted:
       print "%f," % ts,
       for pid in pids_sorted:
@@ -86,45 +116,5 @@ def main( argv ):
               print "0,",
       print
       
-  if 0:
-    for pid in pids_sorted:
-      print pid
-
-  if 0:
-    for ts in times_sorted:
-      # print ts,
-      for pid in pids_sorted:
-        tids_sorted = sorted( threads[ pid ] )
-        for tid in tids_sorted:
-          if type( tid ) is int:
-            print ts, pid, tid,
-      for process in threads_sorted_by_pid:
-        print "   ", process[ 0 ]
-        print "      ",
-        for thread in process[ 1 ]:
-          # filter out bookkeeping information
-          if type( thread ) is int:
-            if ts[ 0 ] in process[ 1 ][ thread ][ 'cpu' ]:
-              print process[ 1 ][ thread ][ 'cpu' ][ ts[ 0 ] ],
-            else:
-              print 0,
-   
-  if 0:
-    for ts, t in times.iteritems():
-      # print '%s:' % key
-      for id, cpu in t.iteritems():
-        # print ' %s %d' % ( id, cpu )
-        print 'hello'
-        
-  if 0:
-    for key, t in threads.iteritems():
-      if t[ 'process' ] != "":
-        print '[%s] %s / %s' % ( key, t[ 'process' ], t[ 'thread' ] )
-      else:
-        print '[%s] [%s]' % ( key, t[ 'thread' ] )
-      for ts, cpu in t[ 'cpu' ].iteritems():
-        # print '   %s %s' % ( ts, cpu )
-        print '  %s %s%%' % ( ts, cpu )
-
 if __name__ == "__main__":
   main( sys.argv[1:] )
