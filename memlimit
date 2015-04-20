@@ -1,0 +1,6 @@
+#!/bin/sh
+
+echo "Setting memory limit to $1 MiB"
+adb reboot bootloader
+fastboot oem mem $1
+fastboot reboot
